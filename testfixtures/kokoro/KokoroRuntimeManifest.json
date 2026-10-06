@@ -1,0 +1,141 @@
+{
+  "buckets": [
+    15
+  ],
+  "bundle_profile": "fixture-executable-v1",
+  "duration_token_sizes": [
+    128
+  ],
+  "hf_download_manifest_sha256": "",
+  "hf_provenance_verified": false,
+  "hf_repo_id": "",
+  "hf_revision": "",
+  "minimum_platforms": {
+    "iOS": "18.0",
+    "macOS": "15.0"
+  },
+  "model_packages": [
+    {
+      "bytes": 592927,
+      "file_count": 3,
+      "files": [
+        {
+          "bytes": 2294,
+          "path": "Data/com.apple.CoreML/model.mlmodel",
+          "sha256": "f374c7c53494e39ee086db0204a9a041b32942d4aeab885ec9edbdd701ea9c95"
+        },
+        {
+          "bytes": 590016,
+          "path": "Data/com.apple.CoreML/weights/weight.bin",
+          "sha256": "3d3a984394650604f4b61cc3d5e512543b677664be5db036a05a02c080d1574b"
+        },
+        {
+          "bytes": 617,
+          "path": "Manifest.json",
+          "sha256": "b6c026b6491c4ac5d84223999d152d7031a56fb6bc1cd1eaccb99818ad205879"
+        }
+      ],
+      "path": "coreml/kokoro_duration_t128.mlpackage",
+      "tree_sha256": "5c9eb51e0db8843aac7e6b91e50dd4518fe7eebe7c192515a51129f3d1aa838a"
+    },
+    {
+      "bytes": 3160,
+      "file_count": 2,
+      "files": [
+        {
+          "bytes": 2543,
+          "path": "Data/com.apple.CoreML/model.mlmodel",
+          "sha256": "c86bcf1d24bb2a5fc27de14f60550d419e487fe12ce5937fdc5fc63edc6267dd"
+        },
+        {
+          "bytes": 617,
+          "path": "Manifest.json",
+          "sha256": "ce57dc01f99d70d1bf12c6570d718829a11094a8967386ab7a9c806eaffa0647"
+        }
+      ],
+      "path": "coreml/kokoro_f0ntrain_t600.mlpackage",
+      "tree_sha256": "d49a9f4c1c2ea1bdc1859835d12372993b2e532b1e84eb3fe6b4b05281e1d6db"
+    },
+    {
+      "bytes": 3495,
+      "file_count": 2,
+      "files": [
+        {
+          "bytes": 2878,
+          "path": "Data/com.apple.CoreML/model.mlmodel",
+          "sha256": "33eb2973611683e5fdfb075a68658e36913283f88dde47871013ca7122e3a43a"
+        },
+        {
+          "bytes": 617,
+          "path": "Manifest.json",
+          "sha256": "e2f9e6b5eae17aead7c45d581f1cad831282773699f26bbe87e793f81a12680b"
+        }
+      ],
+      "path": "coreml/kokoro_decoder_pre_15s.mlpackage",
+      "tree_sha256": "84f319ff6d7df5bf4e2223379dec59de2cef4166ff7f0097332598279a13f405"
+    },
+    {
+      "bytes": 1442108,
+      "file_count": 3,
+      "files": [
+        {
+          "bytes": 1363,
+          "path": "Data/com.apple.CoreML/model.mlmodel",
+          "sha256": "f75f5aaeda01fd78cdd580d2a1db5592c0f6520afc3b316ccc5e9c52723b4ba3"
+        },
+        {
+          "bytes": 1440128,
+          "path": "Data/com.apple.CoreML/weights/weight.bin",
+          "sha256": "940795b68702282bed5d1c89e81be62bf939e7e125f999c4da72fae535e3058b"
+        },
+        {
+          "bytes": 617,
+          "path": "Manifest.json",
+          "sha256": "2785ea6ff427d94e73116a07ac730486f8074c775c7405b816f95a2e0ebbb401"
+        }
+      ],
+      "path": "coreml/kokoro_decoder_har_post_15s.mlpackage",
+      "tree_sha256": "9e7ee6ca46f6c0afba575642a977927e665e47d376c7beeaa4b9008f3893d536"
+    }
+  ],
+  "runtime_assets": {
+    "hnsf_weights": {
+      "bytes": 132,
+      "path": "runtime/hnsf_weights.json",
+      "sha256": "e9be77cf5c0d028c73fa04ba0c43b0139a66d32d8500304423229a881c893649"
+    },
+    "vocab": {
+      "bytes": 1159,
+      "path": "runtime/kokoro-vocab.json",
+      "sha256": "353ca94410fde4575cb091a0ba32b8e99077fde4f38fded506f4f041d22571a3"
+    }
+  },
+  "schema_version": 1,
+  "sdk_commit": "12535d2f1c5ec6faf0004a5b3e0daded4cb7dd2f",
+  "supported_languages": [
+    "en-US"
+  ],
+  "synthetic_fixture": {
+    "artifact_version": "1.1.0",
+    "contract_version": 1,
+    "generator_revision": "12535d2f1c5ec6faf0004a5b3e0daded4cb7dd2f",
+    "kind": "synthetic-coreml"
+  },
+  "voices": [
+    {
+      "bytes": 131072,
+      "path": "voices/af_heart.bin",
+      "sha256": "d1058699e2f4e952bfd0aa4ce44b3ed76e5bee28f1887c9e9cb4962fd3bbda50"
+    },
+    {
+      "bytes": 131072,
+      "path": "voices/af_bella.bin",
+      "sha256": "56fbbef60e5648c1190d5be56dbc5ce89a27e519bb737157561042a2bfa8e928"
+    },
+    {
+      "bytes": 131072,
+      "path": "voices/am_michael.bin",
+      "sha256": "fb40b7c6815a32424a3dfb243db960ff130e3967a31375fe0d8b052314226d64"
+    }
+  ]
+}
