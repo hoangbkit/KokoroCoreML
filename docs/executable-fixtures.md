@@ -161,14 +161,43 @@ and public prewarm/multi-chunk synthesis. Executable tests skip without the
 explicit fixture-root environment variable. Apple-device and bundled-model
 collision checks should be requested separately; they are not UI tests.
 
-`Executable fixture artifact` is **workflow_dispatch only**, usable on a selected
-branch or tag. Its default generates and packages assets without runtime tests;
-`validate=true` explicitly runs the focused macOS checks. It never creates tags
-or releases. `publish=true` additionally requires `validate=true`, a pinned 40-character
-`production_revision` (only the small protobufs are downloaded for comparison),
-and selection of the matching existing release tag and uploads the archive/checksum without overwriting assets.
+## One manual workflow for generation, tests, and release
 
-After contract and runtime validation and PR review, tag the new package version,
-create its release, publish the matching fixture archive, and then have
-ReadAloud pin that exact package/artifact version. Production-artifact contract
-inspection evidence must be available before shipping this fixture release.
+`Generate, test, and release fixtures` is **workflow_dispatch only**. It runs on
+any selected branch or tag and always generates fresh fixtures, compares the
+actual pinned production specifications, runs the macOS Core ML integration
+tests, and packages the archive/checksum plus validation reports. A failed step
+prevents publication.
+
+GitHub must first register the workflow on the default branch (`master`) before
+the **Run workflow** button is available. Once registered, select the branch
+you want to run. This PR adds a new workflow; it is not automatically registered
+while it exists only on the PR branch.
+
+To create a downloadable release:
+
+1. Open **Actions → Generate, test, and release fixtures → Run workflow**.
+2. Select the source branch, normally `master` after review/merge.
+3. Enter a new version such as `1.1.0` (without `v`). This becomes both the package
+   tag and fixture artifact version.
+4. Enter the exact `hf_revision` from the production bundle's
+   `KokoroRuntimeManifest.json`. The workflow fetches only the small model
+   specifications from that immutable HF revision, not production weights.
+5. Enable **Create a new tag and GitHub Release after tests pass**.
+6. Run the workflow. It creates the tag at the exact tested commit only after
+   all generation, contract inspection, and runtime tests pass.
+
+With `publish=false`, the same validation runs and the downloads remain in the
+Actions run's artifact. With `publish=true`, a new GitHub Release contains:
+
+- `kokoro-fixture-VERSION.tar.gz`
+- `kokoro-fixture-VERSION.tar.gz.sha256`
+- `FixtureValidation.json` (tested commit, version, macOS status, and run URL)
+- `ProductionContractInspection.json` (actual specification hashes and revision)
+
+The reports are also included inside the archive. Existing tags/releases are
+not overwritten; select a new version for another published release.
+
+After success, ReadAloud pins the exact package tag and downloads/extracts the
+matching fixture archive. No consumer-owned generation is needed. iPhone
+runtime validation remains separate from this macOS workflow.
