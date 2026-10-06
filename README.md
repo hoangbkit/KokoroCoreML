@@ -37,3 +37,11 @@ with this Swift package. The consuming application supplies them through
 
 The small vocabulary and harmonic-source runtime files required by the SDK are
 included in the `KokoroTTS` target resources.
+
+## Executable integration fixtures
+
+For lightweight model integration, consume the separately versioned synthetic
+fixture bundle with explicit `assetPolicy: .executableFixture`. Default SDK
+loading remains production-only. Models are not added to the library resources.
+See [executable fixture generation and consumption](docs/executable-fixtures.md)
+for contracts, cache isolation, manual validation, and release artifacts.

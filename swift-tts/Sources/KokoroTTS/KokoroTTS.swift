@@ -60,14 +60,17 @@ public actor KokoroTTS {
     /// - Parameters:
     ///   - resources: Bundle resource location.
     ///   - computePolicy: Core ML compute-unit policy for model stages.
+    ///   - assetPolicy: Production-only by default. Explicit fixture admission
+    ///     is intended for synthetic integration builds, never shipping assets.
     /// - Returns: Loaded actor ready for `prepare` and `synthesize`.
     public static func load(
         resources: KokoroResourceProvider,
-        computePolicy: KokoroComputePolicy = .gistDefault
+        computePolicy: KokoroComputePolicy = .gistDefault,
+        assetPolicy: KokoroAssetPolicy = .productionOnly
     ) async throws -> KokoroTTS {
         let loadTask: Task<KokoroTTS, Error> = Task.detached(priority: .userInitiated) {
             try Task.checkCancellation()
-            return try loadSynchronously(resources: resources, computePolicy: computePolicy)
+            return try loadSynchronously(resources: resources, computePolicy: computePolicy, assetPolicy: assetPolicy)
         }
         return try await withTaskCancellationHandler {
             try await loadTask.value
@@ -86,9 +89,10 @@ public actor KokoroTTS {
     /// user-visible synthesis.
     private static func loadSynchronously(
         resources: KokoroResourceProvider,
-        computePolicy: KokoroComputePolicy
+        computePolicy: KokoroComputePolicy,
+        assetPolicy: KokoroAssetPolicy
     ) throws -> KokoroTTS {
-        let modelProvider = try KokoroSDKModelProvider(resources: resources, computePolicy: computePolicy)
+        let modelProvider = try KokoroSDKModelProvider(resources: resources, computePolicy: computePolicy, assetPolicy: assetPolicy)
         let vocab = try modelProvider.vocab()
         let americanTextProcessor = KokoroTextProcessor(
             phonemizer: KokoroMisakiPhonemizer(british: false),

@@ -4,3 +4,6 @@
 Package.resolved
 xcuserdata/
 *.xcuserstate
+__pycache__/
+.venv-fixtures/
+dist/

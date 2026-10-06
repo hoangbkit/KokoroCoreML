@@ -26,6 +26,9 @@ final class KokoroSDKModelProvider: KokoroModelProvider {
     /// Compute-unit policy selected for this facade.
     private let computePolicy: KokoroComputePolicy
 
+    /// Fixture admission disables unverified app-bundled compiled model substitution.
+    private let assetPolicy: KokoroAssetPolicy
+
     /// Sidecar suffix tying reusable `.mlmodelc` output to a source tree hash.
     private static let compiledSourceHashSuffix = ".kokoro-source-tree-sha256"
 
@@ -34,7 +37,11 @@ final class KokoroSDKModelProvider: KokoroModelProvider {
     /// - Parameters:
     ///   - resources: Runtime bundle location.
     ///   - computePolicy: Core ML compute-unit policy for model stages.
-    init(resources: KokoroResourceProvider, computePolicy: KokoroComputePolicy = .gistDefault) throws {
+    init(
+        resources: KokoroResourceProvider,
+        computePolicy: KokoroComputePolicy = .gistDefault,
+        assetPolicy: KokoroAssetPolicy = .productionOnly
+    ) throws {
         let root = try resources.rootURL()
         let manifestURL = root.appendingPathComponent("KokoroRuntimeManifest.json")
         guard FileManager.default.fileExists(atPath: manifestURL.path) else {
@@ -46,13 +53,17 @@ final class KokoroSDKModelProvider: KokoroModelProvider {
         guard manifest.schemaVersion == 1 else {
             throw KokoroError.unsupportedManifestSchema(manifest.schemaVersion)
         }
-        guard manifest.hfProvenanceVerified else {
-            throw KokoroError.badHash(path: "hf_provenance_verified")
-        }
+        try assetPolicy.validate(manifest)
         let manifestModelPaths = Set(manifest.modelPackages.map(\.path))
         self.modelsDirectory = root.appendingPathComponent("coreml", isDirectory: true)
-        let compiledModelsDirectory = resources.explicitCompiledModelsDirectoryURL()
+        var compiledModelsDirectory = resources.explicitCompiledModelsDirectoryURL()
             ?? Self.defaultCompiledModelsDirectory(for: manifest)
+        if case .executableFixture = assetPolicy {
+            // Even caller-supplied shared caches get a source-specific fixture namespace.
+            compiledModelsDirectory = compiledModelsDirectory.appendingPathComponent(
+                "fixture-\(Self.compiledCacheDigest(for: manifest))", isDirectory: true
+            )
+        }
         try Self.validateCompiledModelsDirectory(bundleRootURL: root, compiledModelsDirectory: compiledModelsDirectory)
         self.compiledModelsDirectory = compiledModelsDirectory
         let durationChoices = KokoroPipeline.discoverDurationChoices(modelsDirectory: modelsDirectory)
@@ -76,6 +87,7 @@ final class KokoroSDKModelProvider: KokoroModelProvider {
         self.durationChoices = [runtimeDuration]
         self.manifest = manifest
         self.computePolicy = computePolicy
+        self.assetPolicy = assetPolicy
         try Self.validateFileDigests(rootURL: root, manifest: manifest)
     }
 
@@ -221,10 +233,16 @@ final class KokoroSDKModelProvider: KokoroModelProvider {
         config.computeUnits = units
         let compiledName = url.deletingPathExtension().lastPathComponent + ".mlmodelc"
         let precompiled = compiledModelsDirectory.appendingPathComponent(compiledName, isDirectory: true)
-        let bundled = Bundle.main.url(
-            forResource: url.deletingPathExtension().lastPathComponent,
-            withExtension: "mlmodelc"
-        )
+        let bundled: URL?
+        switch assetPolicy {
+        case .productionOnly:
+            bundled = Bundle.main.url(
+                forResource: url.deletingPathExtension().lastPathComponent,
+                withExtension: "mlmodelc"
+            )
+        case .executableFixture:
+            bundled = nil
+        }
         var compiled: URL
         if let bundled {
             progress?("bundled.\(cacheKey)")
@@ -257,6 +275,9 @@ final class KokoroSDKModelProvider: KokoroModelProvider {
             } else {
                 throw KokoroError.coreMLLoadFailed(url.lastPathComponent)
             }
+        }
+        if case .executableFixture = assetPolicy {
+            try KokoroFixtureContract.validate(loaded, packageName: url.lastPathComponent)
         }
         models[cacheKey] = loaded
         return loaded

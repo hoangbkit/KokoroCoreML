@@ -32,6 +32,12 @@ public enum KokoroError: Error, Equatable, LocalizedError {
     /// The runtime manifest schema is not supported by this SDK.
     case unsupportedManifestSchema(Int)
 
+    /// Synthetic model assets were supplied without explicit fixture admission.
+    case fixtureAssetsRejected
+
+    /// Fixture admission received a bundle outside the supported synthetic contract.
+    case invalidFixtureManifest
+
     /// The requested voice or language is not supported by this bundle.
     case unsupportedVoice(String)
 
@@ -89,6 +95,10 @@ public enum KokoroError: Error, Equatable, LocalizedError {
             return "Kokoro download is too large for configured limits: \(path) has \(bytes) bytes, maximum \(maxBytes)."
         case .unsupportedManifestSchema(let version):
             return "Kokoro runtime manifest schema is not supported: \(version)."
+        case .fixtureAssetsRejected:
+            return "Synthetic Kokoro fixtures require explicit executableFixture asset policy."
+        case .invalidFixtureManifest:
+            return "Kokoro executable fixture provenance or geometry is invalid."
         case .unsupportedVoice(let voice):
             return "Kokoro voice is not supported by this bundle: \(voice)."
         case .emptyText:

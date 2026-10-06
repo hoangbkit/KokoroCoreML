@@ -22,7 +22,8 @@ func runSmoke() async throws {
     }
     let tts = try await KokoroTTS.load(
         resources: resources,
-        computePolicy: options.cpuOnly ? .cpuOnly : .gistDefault
+        computePolicy: options.cpuOnly ? .cpuOnly : .gistDefault,
+        assetPolicy: options.fixture ? .executableFixture : .productionOnly
     )
     let audio = try await tts.synthesize(options.text, voice: options.voice)
     if let outputURL = options.outputURL {
@@ -35,12 +36,15 @@ func runSmoke() async throws {
 struct SmokeOptions {
     /// Usage text shown for invalid invocations.
     static let usage = """
-    usage: kokoro-sdk-smoke [--cpu-only] [--bundle <bundle-root> | --manifest-url <url> --manifest-sha256 <sha256> --cache-dir <dir>] [--text <text>] [--voice <voice>] [--out <wav>]
-           kokoro-sdk-smoke [--cpu-only] <bundle-root> [text]
+    usage: kokoro-sdk-smoke [--cpu-only] [--fixture] [--bundle <bundle-root> | --manifest-url <url> --manifest-sha256 <sha256> --cache-dir <dir>] [--text <text>] [--voice <voice>] [--out <wav>]
+           kokoro-sdk-smoke [--cpu-only] [--fixture] <bundle-root> [text]
     """
 
     /// Whether to force CPU-only Core ML loading.
     let cpuOnly: Bool
+
+    /// Explicitly admit synthetic executable fixture assets.
+    let fixture: Bool
 
     /// Explicit generated bundle root.
     let bundleRoot: URL?
@@ -68,6 +72,8 @@ struct SmokeOptions {
     /// - Parameter arguments: Process arguments after executable name.
     init(arguments: [String]) throws {
         var values = arguments
+        let fixture = values.contains("--fixture")
+        values.removeAll { $0 == "--fixture" }
         var cpuOnly = false
         var bundleRoot: URL?
         var manifestURL: URL?
@@ -88,6 +94,7 @@ struct SmokeOptions {
                 text = values[1]
             }
             self.cpuOnly = cpuOnly
+            self.fixture = fixture
             self.bundleRoot = bundleRoot
             self.manifestURL = nil
             self.manifestSHA256 = ""
@@ -133,6 +140,7 @@ struct SmokeOptions {
         }
 
         self.cpuOnly = cpuOnly
+        self.fixture = fixture
         self.bundleRoot = bundleRoot
         self.manifestURL = manifestURL
         self.manifestSHA256 = manifestSHA256
