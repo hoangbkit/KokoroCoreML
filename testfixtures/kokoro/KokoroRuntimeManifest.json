@@ -22,7 +22,7 @@
         {
           "bytes": 2294,
           "path": "Data/com.apple.CoreML/model.mlmodel",
-          "sha256": "f374c7c53494e39ee086db0204a9a041b32942d4aeab885ec9edbdd701ea9c95"
+          "sha256": "b4ff28bb904399cd88bef690de7ccb536d0a11613cb59d6f6590b48edd4a73d5"
         },
         {
           "bytes": 590016,
@@ -32,11 +32,11 @@
         {
           "bytes": 617,
           "path": "Manifest.json",
-          "sha256": "b6c026b6491c4ac5d84223999d152d7031a56fb6bc1cd1eaccb99818ad205879"
+          "sha256": "2121bdbad8e25e199bcc00d1d07fd85648f73627fe94e3319d60b222f128de22"
         }
       ],
       "path": "coreml/kokoro_duration_t128.mlpackage",
-      "tree_sha256": "5c9eb51e0db8843aac7e6b91e50dd4518fe7eebe7c192515a51129f3d1aa838a"
+      "tree_sha256": "3a44f5504750f80bf64c62a23a758fe4275aa0886aef45285952aff7004843a0"
     },
     {
       "bytes": 3160,
@@ -45,16 +45,16 @@
         {
           "bytes": 2543,
           "path": "Data/com.apple.CoreML/model.mlmodel",
-          "sha256": "c86bcf1d24bb2a5fc27de14f60550d419e487fe12ce5937fdc5fc63edc6267dd"
+          "sha256": "c43de43c287f8908759f30bee11bb6a34f2fb14d459ab4b5e6baa8caa4577d65"
         },
         {
           "bytes": 617,
           "path": "Manifest.json",
-          "sha256": "ce57dc01f99d70d1bf12c6570d718829a11094a8967386ab7a9c806eaffa0647"
+          "sha256": "e48c03737f2d7987bfb7fda24e53fd062a1b62c84009b326defda5d2c23c5af5"
         }
       ],
       "path": "coreml/kokoro_f0ntrain_t600.mlpackage",
-      "tree_sha256": "d49a9f4c1c2ea1bdc1859835d12372993b2e532b1e84eb3fe6b4b05281e1d6db"
+      "tree_sha256": "1a4e9bb3fd0bd1bbbba24bb5fee3eb46cc8831700305bc01b47e7e892cfb31f1"
     },
     {
       "bytes": 3495,
@@ -63,39 +63,39 @@
         {
           "bytes": 2878,
           "path": "Data/com.apple.CoreML/model.mlmodel",
-          "sha256": "33eb2973611683e5fdfb075a68658e36913283f88dde47871013ca7122e3a43a"
+          "sha256": "7bf36b1e97de66ab8f4692d2843790cabe6d0eaa3b471f71f87eb742605e5495"
         },
         {
           "bytes": 617,
           "path": "Manifest.json",
-          "sha256": "e2f9e6b5eae17aead7c45d581f1cad831282773699f26bbe87e793f81a12680b"
+          "sha256": "7f89ed6efc1b0f2e8c1cdd10ea618f334419727491b96596586c5326786a2b68"
         }
       ],
       "path": "coreml/kokoro_decoder_pre_15s.mlpackage",
-      "tree_sha256": "84f319ff6d7df5bf4e2223379dec59de2cef4166ff7f0097332598279a13f405"
+      "tree_sha256": "92e29cf737d68f180bd6fac565e11c53d7359155f3e06c83107c997513ae14d8"
     },
     {
-      "bytes": 1442108,
+      "bytes": 722108,
       "file_count": 3,
       "files": [
         {
           "bytes": 1363,
           "path": "Data/com.apple.CoreML/model.mlmodel",
-          "sha256": "f75f5aaeda01fd78cdd580d2a1db5592c0f6520afc3b316ccc5e9c52723b4ba3"
+          "sha256": "2677eadd1cb80a4a4e1cd9b29ca029dcc6876d50413af91b7af741eb54b2ead2"
         },
         {
-          "bytes": 1440128,
+          "bytes": 720128,
           "path": "Data/com.apple.CoreML/weights/weight.bin",
-          "sha256": "940795b68702282bed5d1c89e81be62bf939e7e125f999c4da72fae535e3058b"
+          "sha256": "126766d39ed99e9320fc7637f1411cab08bdb5d6a6cf043ba94ec7fae736e16f"
         },
         {
           "bytes": 617,
           "path": "Manifest.json",
-          "sha256": "2785ea6ff427d94e73116a07ac730486f8074c775c7405b816f95a2e0ebbb401"
+          "sha256": "50732ead59c2e633df2be96d9b6d1a73ff8a9164d19d46917af5b777c6c373da"
         }
       ],
       "path": "coreml/kokoro_decoder_har_post_15s.mlpackage",
-      "tree_sha256": "9e7ee6ca46f6c0afba575642a977927e665e47d376c7beeaa4b9008f3893d536"
+      "tree_sha256": "72175091f571a2348750280cad7adefe3f5c630572ec0010223776d2ad54d8eb"
     }
   ],
   "runtime_assets": {
@@ -111,14 +111,14 @@
     }
   },
   "schema_version": 1,
-  "sdk_commit": "12535d2f1c5ec6faf0004a5b3e0daded4cb7dd2f",
+  "sdk_commit": "bbc91066750590156430c4f75ab6e9b294c9734b",
   "supported_languages": [
     "en-US"
   ],
   "synthetic_fixture": {
     "artifact_version": "1.1.0",
     "contract_version": 1,
-    "generator_revision": "12535d2f1c5ec6faf0004a5b3e0daded4cb7dd2f",
+    "generator_revision": "bbc91066750590156430c4f75ab6e9b294c9734b",
     "kind": "synthetic-coreml"
   },
   "voices": [

@@ -4,14 +4,14 @@
   "runtime_commit": "81855f94ec873405d59967d36beb630ef0fd332a",
   "production_contract_source": {
     "repository": "mattmireles/kokoro-coreml",
-    "revision": "a3f1ff27b1d8683efa9976704b46cb1d96da1a4b",
-    "kind": "pinned-exporter-source",
+    "revision": "51675ffbf14a92e7a144bc2695a88c87ae11ad34",
+    "kind": "pinned-hugging-face-artifact",
+    "exporter_revision": "523abafac0e3a82a443b0c2b4543396d7229a914",
     "files": [
-      "export_duration.py",
-      "export_f0ntrain.py",
-      "export_decoder_pre.py",
-      "export_synth/convert.py",
-      "export_synth/wrappers.py"
+      "coreml/kokoro_duration_t128.mlpackage/Data/com.apple.CoreML/model.mlmodel",
+      "coreml/kokoro_f0ntrain_t600.mlpackage/Data/com.apple.CoreML/model.mlmodel",
+      "coreml/kokoro_decoder_pre_15s.mlpackage/Data/com.apple.CoreML/model.mlmodel",
+      "coreml/kokoro_decoder_har_post_15s.mlpackage/Data/com.apple.CoreML/model.mlmodel"
     ],
     "artifact_inspection": "required-before-release"
   },
@@ -241,7 +241,7 @@
           "shape": [
             1,
             22,
-            72001
+            144001
           ],
           "dtype": "float32"
         },
@@ -263,7 +263,7 @@
             1,
             360000
           ],
-          "dtype": "float32"
+          "dtype": "float16"
         }
       ]
     }

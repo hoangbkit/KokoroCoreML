@@ -1,20 +1,20 @@
 {
   "artifact_version": "1.1.0",
-  "contract_sha256": "a68780f5dd67e65f716b9c3c280123074efd1b2fefa29639d1b94483f9203e36",
-  "generator_revision": "12535d2f1c5ec6faf0004a5b3e0daded4cb7dd2f",
+  "contract_sha256": "05aff42a14dea4e0e3f705c063070df265c4165336c72af4f0f6910f55291383",
+  "generator_revision": "bbc91066750590156430c4f75ab6e9b294c9734b",
   "kind": "synthetic-coreml",
   "production_contract_source": {
     "artifact_inspection": "required-before-release",
+    "exporter_revision": "523abafac0e3a82a443b0c2b4543396d7229a914",
     "files": [
-      "export_duration.py",
-      "export_f0ntrain.py",
-      "export_decoder_pre.py",
-      "export_synth/convert.py",
-      "export_synth/wrappers.py"
+      "coreml/kokoro_duration_t128.mlpackage/Data/com.apple.CoreML/model.mlmodel",
+      "coreml/kokoro_f0ntrain_t600.mlpackage/Data/com.apple.CoreML/model.mlmodel",
+      "coreml/kokoro_decoder_pre_15s.mlpackage/Data/com.apple.CoreML/model.mlmodel",
+      "coreml/kokoro_decoder_har_post_15s.mlpackage/Data/com.apple.CoreML/model.mlmodel"
     ],
-    "kind": "pinned-exporter-source",
+    "kind": "pinned-hugging-face-artifact",
     "repository": "mattmireles/kokoro-coreml",
-    "revision": "a3f1ff27b1d8683efa9976704b46cb1d96da1a4b"
+    "revision": "51675ffbf14a92e7a144bc2695a88c87ae11ad34"
   },
   "reproducibility": "equivalent contracts and deterministic outputs; package UUIDs may differ",
   "runtime_validation": "not-performed-by-generator",
