@@ -163,6 +163,7 @@ python scripts/fixtures/inspect_contract.py --bundle /tmp/fixture-build/kokoro
 xcodebuild -downloadComponent MetalToolchain
 xcodebuild build-for-testing -scheme KokoroCoreML-Package \
   -destination 'platform=macOS' -derivedDataPath /tmp/kokoro-xcode
+bash scripts/fixtures/stage_test_resources.sh /tmp/kokoro-xcode/Build/Products/Debug
 KOKORO_EXECUTABLE_FIXTURE_ROOT=/tmp/fixture-build/kokoro \
   xcrun xctest -XCTest KokoroTTSTests.ExecutableFixtureTests \
   /tmp/kokoro-xcode/Build/Products/Debug/KokoroTTSTests.xctest
@@ -191,6 +192,15 @@ It also installs the Metal compiler component and builds the package with
 `swift test` compiles Swift/C++ but does not compile the Metal shaders needed
 when Misaki initializes. The workflow rejects a zero-test result before
 recording successful validation. See the [MLX build instructions](https://github.com/ml-explore/mlx-swift/blob/0.31.4/README.md#xcodebuild).
+
+Before launching the hostless macOS tests, `stage_test_resources.sh` copies the
+built Misaki data bundle and MLX shader bundle into the temporary Misaki dynamic
+framework's Resources directory. It also supplies MLX's supported
+`Resources/default.metallib` fallback. Xcode otherwise copies these bundles into
+the test bundle, which Misaki's generated `Bundle.module` accessor does not find
+from its separate framework. This staging changes only temporary build products;
+the fixture archive still contains only Kokoro model/voice assets, and consuming
+apps use Xcode's normal package-resource embedding.
 
 GitHub must first register the workflow on the default branch (`master`) before
 the **Run workflow** button is available. Once registered, select the branch

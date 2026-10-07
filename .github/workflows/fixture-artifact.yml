@@ -75,6 +75,8 @@ jobs:
             -scheme KokoroCoreML-Package \
             -destination 'platform=macOS' \
             -derivedDataPath "$RUNNER_TEMP/kokoro-xcode"
+      - name: Stage dynamic Misaki framework resources for hostless tests
+        run: bash scripts/fixtures/stage_test_resources.sh "$RUNNER_TEMP/kokoro-xcode/Build/Products/Debug"
       - name: Compile models and test the real macOS Core ML pipeline
         env:
           KOKORO_EXECUTABLE_FIXTURE_ROOT: ${{ runner.temp }}/fixture-build/kokoro
