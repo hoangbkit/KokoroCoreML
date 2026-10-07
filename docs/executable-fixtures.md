@@ -112,20 +112,25 @@ Do not hand-edit generated model internals.
 
 The shared machine-readable descriptor is
 `swift-tts/Sources/KokoroTTS/Resources/KokoroRuntime/KokoroFixtureContract.json`.
-It pins the upstream exporter source at
-`mattmireles/kokoro-coreml@a3f1ff27b1d8683efa9976704b46cb1d96da1a4b`.
+It pins the published Hugging Face production artifacts at
+`mattmireles/kokoro-coreml@51675ffbf14a92e7a144bc2695a88c87ae11ad34`,
+exported from source revision `523abafac0e3a82a443b0c2b4543396d7229a914`.
 
 This includes duration outputs `s` and `ref_s_out`, int32 token IDs/durations,
-float32 boundary tensors, and required validity masks for all three acoustic
-stages. The fixed generator takes `x_pre [1,512,1200]`, `har [1,22,72001]`, and
-outputs `waveform [1,1,360000]`. Range generators and their extra masks are
+float32 input tensors, and required validity masks for all three acoustic
+stages. The fixed generator takes `x_pre [1,512,1200]`, `har [1,22,144001]`, and
+outputs float16 `waveform [1,1,360000]`. The SDK converts that output to Float32
+PCM through its existing audio extraction path. Range generators and their extra masks are
 outside this initial fixture contract.
 
 **Published production model specification comparison remains a release gate.**
-The initial implementation derived contracts from pinned exporter source;
-access to the published binary specifications was unavailable during authoring.
-Do not describe this as artifact-verified until the following comparison has
-been explicitly requested and completed. It needs only the small
+The initial implementation inferred a 72001-frame harmonic input and float32
+waveform from a different exporter revision. The first workflow run detected
+the harmonic input mismatch; reading the actual pinned generator specification
+also confirmed its float16 output. The corrected fixture matches those declared
+boundaries. Full contract comparison and macOS runtime validation must still
+pass before release. Do not describe the bundle as validated until that run
+completes. Contract comparison needs only the small
 `Data/com.apple.CoreML/model.mlmodel` files, not production weights:
 
 ```sh
@@ -180,8 +185,11 @@ To create a downloadable release:
 2. Select the source branch, normally `master` after review/merge.
 3. Enter a new version such as `1.1.0` (without `v`). This becomes both the package
    tag and fixture artifact version.
-4. Enter the exact `hf_revision` from the production bundle's
-   `KokoroRuntimeManifest.json`. The workflow fetches only the small model
+4. Keep the default production revision
+   `51675ffbf14a92e7a144bc2695a88c87ae11ad34` for this fixture contract. To compare
+   another production revision, enter its exact `hf_revision` from
+   `KokoroRuntimeManifest.json`; any contract drift blocks publication.
+   The workflow fetches only the small model
    specifications from that immutable HF revision, not production weights.
 5. Enable **Create a new tag and GitHub Release after tests pass**.
 6. Run the workflow. It creates the tag at the exact tested commit only after

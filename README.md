@@ -132,7 +132,9 @@ python scripts/fixtures/require_production_assets.py /path/to/staged/production/
 The manual **Generate, test, and release fixtures** workflow generates fresh
 assets, compares pinned production contracts, runs macOS Core ML integration
 tests, and packages the downloads. Enable its publication input to create a new
-tag and release after all checks pass. A macOS validation report does not cover
+tag and release after all checks pass. Keep the default production revision for
+this fixture contract; changing it requires matching the new model contracts.
+A macOS validation report does not cover
 ReadAloud's iPhone playback or device runtime; validate those in the consuming app.
 
 See [executable fixture generation and consumption](docs/executable-fixtures.md)

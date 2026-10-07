@@ -4,13 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: New package/fixture version, e.g. 1.1.0
+        description: Release version, e.g. 1.1.0
         required: true
         type: string
       production_revision:
-        description: Exact 40-character HF revision from your production Kokoro runtime manifest
+        description: Production model revision (40-character HF SHA)
         required: true
         type: string
+        default: '51675ffbf14a92e7a144bc2695a88c87ae11ad34'
       publish:
         description: Create a new tag and GitHub Release after tests pass
         type: boolean
