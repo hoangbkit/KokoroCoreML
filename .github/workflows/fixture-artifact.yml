@@ -7,6 +7,7 @@ on:
         description: Release version, e.g. 1.1.0
         required: true
         type: string
+        default: '1.1.0'
       production_revision:
         description: Production model revision (40-character HF SHA)
         required: true
