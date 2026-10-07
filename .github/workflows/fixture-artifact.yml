@@ -30,6 +30,14 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      - name: Select Xcode with Swift 6.2 for MisakiSwift
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.0.1'
+      - name: Report selected Apple toolchain
+        run: |
+          xcodebuild -version
+          xcrun swift --version
       - name: Check version and pinned artifact revision
         env:
           FIXTURE_VERSION: ${{ inputs.version }}

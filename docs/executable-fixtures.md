@@ -174,6 +174,9 @@ actual pinned production specifications, runs the macOS Core ML integration
 tests, and packages the archive/checksum plus validation reports. A failed step
 prevents publication.
 
+The macOS job explicitly selects Xcode 26.0.1, since the pinned MisakiSwift
+dependency requires Swift tools 6.2. The runner's default Xcode may be older.
+
 GitHub must first register the workflow on the default branch (`master`) before
 the **Run workflow** button is available. Once registered, select the branch
 you want to run. This PR adds a new workflow; it is not automatically registered

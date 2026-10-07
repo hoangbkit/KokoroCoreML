@@ -11,7 +11,8 @@ The package exposes two library products:
 
 - iOS 18 or later
 - macOS 15 or later
-- Swift 5.9 or later
+- Swift 6.2 or later (required by the pinned MisakiSwift dependency)
+- Xcode 26 or later for Apple platform builds
 
 ## Swift Package Manager
 
