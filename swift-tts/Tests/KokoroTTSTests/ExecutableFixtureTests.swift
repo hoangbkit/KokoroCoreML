@@ -33,12 +33,13 @@ final class ExecutableFixtureTests: XCTestCase {
 
     func testExplicitCachesAreNamespacedByFixtureIdentity() throws {
         let root = try filesystemFixture()
-        let shared = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let shared = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
         let provider = try KokoroSDKModelProvider(
             resources: .directory(root, compiledModelsDirectory: shared), assetPolicy: .executableFixture
         )
-        XCTAssertEqual(provider.compiledModelsDirectory.deletingLastPathComponent(), shared)
+        XCTAssertEqual(provider.compiledModelsDirectory.deletingLastPathComponent().standardizedFileURL.path,
+            shared.standardizedFileURL.path)
         XCTAssertTrue(provider.compiledModelsDirectory.lastPathComponent.hasPrefix("fixture-"))
     }
 
@@ -58,6 +59,9 @@ final class ExecutableFixtureTests: XCTestCase {
         let result = try executeKokoroSynthesis(request: request, modelProvider: provider,
             linearWeights: weights.linearWeights, linearBias: weights.linearBias, tensorDump: &dump)
         XCTAssertEqual(result.tokenDurationFrames, [Int](repeating: 1, count: 128))
+        XCTAssertEqual(result.harExpectedTime, 144001)
+        XCTAssertEqual(try provider.generatorModel(bucketSec: 15)
+            .modelDescription.outputDescriptionsByName["waveform"]?.multiArrayConstraint?.dataType, .float16)
         XCTAssertEqual(result.audio.count, 128 * 600)
         XCTAssertTrue(result.audio.allSatisfy(\.isFinite))
         XCTAssertGreaterThan(result.audio.map { abs($0) }.max() ?? 0, 0.001)

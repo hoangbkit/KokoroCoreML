@@ -20,6 +20,8 @@ REPO = Path(__file__).resolve().parents[2]
 RUNTIME = REPO / 'swift-tts/Sources/KokoroTTS/Resources/KokoroRuntime'
 CONTRACT = RUNTIME / 'KokoroFixtureContract.json'
 PINNED = {'coremltools': '9.0', 'numpy': '2.2.6', 'protobuf': '6.33.0'}
+NUMPY_DTYPES = {'int32': np.int32, 'float32': np.float32, 'float16': np.float16}
+MIL_DTYPES = {'int32': types.int32, 'float32': types.fp32, 'float16': types.fp16}
 
 
 def sha256(data: bytes) -> str:
@@ -56,7 +58,7 @@ def filled(tensor: dict, value: float):
 
 def program_for(model: dict) -> Program:
     inputs = {t['name']: mb.placeholder(shape=tuple(t['shape']),
-              dtype=types.int32 if t['dtype'] == 'int32' else types.fp32)
+              dtype=MIL_DTYPES[t['dtype']])
               for t in model['inputs']}
     program = Program()
     with Function(inputs, opset_version=ct.target.iOS18) as function:
@@ -91,7 +93,10 @@ def program_for(model: dict) -> Program:
                 tone = (0.02 * np.sin(2 * np.pi * 440 * time)).astype(np.float32)
                 # The complete 15s output is intentional: the runtime trims it
                 # to 600 samples per valid duration frame and suppresses punctuation.
-                value = mb.const(val=tone.reshape(tensor['shape']), name=name)
+                value = mb.const(val=tone.reshape(tensor['shape']),
+                                 name=name if tensor['dtype'] == 'float32' else name + '_float32')
+                if tensor['dtype'] == 'float16':
+                    value = mb.cast(x=value, dtype='fp16', name=name)
             else:
                 value = filled(tensor, 0.01)
             outputs.append(value)
@@ -107,8 +112,8 @@ def build(root: Path, version: str, revision: str) -> None:
     packages = []
     for model in contract['models']:
         path = root / 'coreml' / model['name']
-        outputs = [ct.TensorType(name=t['name'], dtype=np.int32 if t['dtype'] == 'int32'
-                                 else np.float32) for t in model['outputs']]
+        outputs = [ct.TensorType(name=t['name'], dtype=NUMPY_DTYPES[t['dtype']])
+                   for t in model['outputs']]
         converted = ct.convert(program_for(model), source='milinternal', convert_to='mlprogram',
                                minimum_deployment_target=ct.target.iOS18,
                                compute_precision=ct.precision.FLOAT32,

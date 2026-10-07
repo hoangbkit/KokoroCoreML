@@ -11,7 +11,8 @@ The package exposes two library products:
 
 - iOS 18 or later
 - macOS 15 or later
-- Swift 5.9 or later
+- Swift 6.2 or later (required by the pinned MisakiSwift dependency)
+- Xcode 26 or later for Apple platform builds
 
 ## Swift Package Manager
 
@@ -114,7 +115,10 @@ let buffer = try audio.makePCMBuffer()
 Keep the `tts` actor in your app's existing model/session owner and reuse it for
 subsequent requests. `load` validates the bundle; `prewarm` compiles models and
 runs the complete prediction pipeline. Audio is mono Float32 PCM at 24 kHz.
-CPU-only is useful for repeatable integration runs. For fixtures stored outside
+CPU-only controls the Core ML stages; Misaki's text phonemizer also needs MLX
+Metal resources. Build apps and raw-text command-line tools with Xcode so those
+shaders are compiled (plain `swift run`/`swift test` does not compile them).
+CPU-only is useful for repeatable Core ML integration runs. For fixtures stored outside
 the app bundle, replace the resource provider with `.directory(fixtureRoot)`,
 where `fixtureRoot` is the URL of the extracted `kokoro/` directory.
 
@@ -132,7 +136,9 @@ python scripts/fixtures/require_production_assets.py /path/to/staged/production/
 The manual **Generate, test, and release fixtures** workflow generates fresh
 assets, compares pinned production contracts, runs macOS Core ML integration
 tests, and packages the downloads. Enable its publication input to create a new
-tag and release after all checks pass. A macOS validation report does not cover
+tag and release after all checks pass. Keep the default production revision for
+this fixture contract; changing it requires matching the new model contracts.
+A macOS validation report does not cover
 ReadAloud's iPhone playback or device runtime; validate those in the consuming app.
 
 See [executable fixture generation and consumption](docs/executable-fixtures.md)

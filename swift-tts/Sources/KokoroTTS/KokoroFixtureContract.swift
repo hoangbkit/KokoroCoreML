@@ -45,6 +45,7 @@ enum KokoroFixtureContract {
             switch tensor.dtype {
             case "int32": expectedType = .int32
             case "float32": expectedType = .float32
+            case "float16": expectedType = .float16
             default: throw mismatch(packageName, "unsupported contract dtype \(tensor.dtype)")
             }
             guard constraint.dataType == expectedType,

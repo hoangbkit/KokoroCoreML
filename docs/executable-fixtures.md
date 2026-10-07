@@ -40,15 +40,19 @@ let audio = try await tts.synthesize("Hello world.", voice: .afHeart)
 // audio.samples is final finite 24 kHz mono PCM after normal postprocessing.
 ```
 
-CPU-only is useful for deterministic integration runs. An explicitly requested
+CPU-only controls the Core ML stages, not Misaki's MLX-backed text phonemizer.
+Build the consuming app with Xcode to include MLX's Metal shaders.
+CPU-only is useful for deterministic Core ML integration runs. An explicitly requested
 Apple-device check should also cover the app's intended compute policy.
 `load` validates resources lazily; actual compilation/prediction occurs in
 `prewarm` or synthesis. Empty/inaudible text continues to follow SDK semantics.
 
-For a manually requested command-line run on macOS:
+For a manually requested command-line run on macOS, open `Package.swift` in
+Xcode and build/run the `kokoro-sdk-smoke` executable product. Set its scheme's
+launch arguments to:
 
 ```sh
-swift run kokoro-sdk-smoke --fixture --cpu-only --bundle /absolute/path/kokoro --out fixture.wav
+--fixture --cpu-only --bundle /absolute/path/kokoro --out fixture.wav
 ```
 
 ## Admission and production separation
@@ -112,20 +116,25 @@ Do not hand-edit generated model internals.
 
 The shared machine-readable descriptor is
 `swift-tts/Sources/KokoroTTS/Resources/KokoroRuntime/KokoroFixtureContract.json`.
-It pins the upstream exporter source at
-`mattmireles/kokoro-coreml@a3f1ff27b1d8683efa9976704b46cb1d96da1a4b`.
+It pins the published Hugging Face production artifacts at
+`mattmireles/kokoro-coreml@51675ffbf14a92e7a144bc2695a88c87ae11ad34`,
+exported from source revision `523abafac0e3a82a443b0c2b4543396d7229a914`.
 
 This includes duration outputs `s` and `ref_s_out`, int32 token IDs/durations,
-float32 boundary tensors, and required validity masks for all three acoustic
-stages. The fixed generator takes `x_pre [1,512,1200]`, `har [1,22,72001]`, and
-outputs `waveform [1,1,360000]`. Range generators and their extra masks are
+float32 input tensors, and required validity masks for all three acoustic
+stages. The fixed generator takes `x_pre [1,512,1200]`, `har [1,22,144001]`, and
+outputs float16 `waveform [1,1,360000]`. The SDK converts that output to Float32
+PCM through its existing audio extraction path. Range generators and their extra masks are
 outside this initial fixture contract.
 
 **Published production model specification comparison remains a release gate.**
-The initial implementation derived contracts from pinned exporter source;
-access to the published binary specifications was unavailable during authoring.
-Do not describe this as artifact-verified until the following comparison has
-been explicitly requested and completed. It needs only the small
+The initial implementation inferred a 72001-frame harmonic input and float32
+waveform from a different exporter revision. The first workflow run detected
+the harmonic input mismatch; reading the actual pinned generator specification
+also confirmed its float16 output. The corrected fixture matches those declared
+boundaries. Full contract comparison and macOS runtime validation must still
+pass before release. Do not describe the bundle as validated until that run
+completes. Contract comparison needs only the small
 `Data/com.apple.CoreML/model.mlmodel` files, not production weights:
 
 ```sh
@@ -151,7 +160,13 @@ When explicitly requested:
 
 ```sh
 python scripts/fixtures/inspect_contract.py --bundle /tmp/fixture-build/kokoro
-KOKORO_EXECUTABLE_FIXTURE_ROOT=/tmp/fixture-build/kokoro swift test --filter ExecutableFixtureTests
+xcodebuild -downloadComponent MetalToolchain
+xcodebuild build-for-testing -scheme KokoroCoreML-Package \
+  -destination 'platform=macOS' -derivedDataPath /tmp/kokoro-xcode
+bash scripts/fixtures/stage_test_resources.sh /tmp/kokoro-xcode/Build/Products/Debug
+KOKORO_EXECUTABLE_FIXTURE_ROOT=/tmp/fixture-build/kokoro \
+  xcrun xctest -XCTest KokoroTTSTests.ExecutableFixtureTests \
+  /tmp/kokoro-xcode/Build/Products/Debug/KokoroTTSTests.xctest
 ```
 
 The focused tests cover default fixture rejection, strict fixture admission,
@@ -169,6 +184,24 @@ actual pinned production specifications, runs the macOS Core ML integration
 tests, and packages the archive/checksum plus validation reports. A failed step
 prevents publication.
 
+The macOS job explicitly selects Xcode 26.0.1, since the pinned MisakiSwift
+dependency requires Swift tools 6.2. The runner's default Xcode may be older.
+It also installs the Metal compiler component and builds the package with
+`xcodebuild build-for-testing`, then runs only `ExecutableFixtureTests` with
+`xcrun xctest`. This follows the pinned MLX dependency's Xcode build path: plain
+`swift test` compiles Swift/C++ but does not compile the Metal shaders needed
+when Misaki initializes. The workflow rejects a zero-test result before
+recording successful validation. See the [MLX build instructions](https://github.com/ml-explore/mlx-swift/blob/0.31.4/README.md#xcodebuild).
+
+Before launching the hostless macOS tests, `stage_test_resources.sh` copies the
+built Misaki data bundle and MLX shader bundle into the temporary Misaki dynamic
+framework's Resources directory. It also supplies MLX's supported
+`Resources/default.metallib` fallback. Xcode otherwise copies these bundles into
+the test bundle, which Misaki's generated `Bundle.module` accessor does not find
+from its separate framework. This staging changes only temporary build products;
+the fixture archive still contains only Kokoro model/voice assets, and consuming
+apps use Xcode's normal package-resource embedding.
+
 GitHub must first register the workflow on the default branch (`master`) before
 the **Run workflow** button is available. Once registered, select the branch
 you want to run. This PR adds a new workflow; it is not automatically registered
@@ -180,8 +213,11 @@ To create a downloadable release:
 2. Select the source branch, normally `master` after review/merge.
 3. Enter a new version such as `1.1.0` (without `v`). This becomes both the package
    tag and fixture artifact version.
-4. Enter the exact `hf_revision` from the production bundle's
-   `KokoroRuntimeManifest.json`. The workflow fetches only the small model
+4. Keep the default production revision
+   `51675ffbf14a92e7a144bc2695a88c87ae11ad34` for this fixture contract. To compare
+   another production revision, enter its exact `hf_revision` from
+   `KokoroRuntimeManifest.json`; any contract drift blocks publication.
+   The workflow fetches only the small model
    specifications from that immutable HF revision, not production weights.
 5. Enable **Create a new tag and GitHub Release after tests pass**.
 6. Run the workflow. It creates the tag at the exact tested commit only after

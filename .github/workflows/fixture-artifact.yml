@@ -4,13 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: New package/fixture version, e.g. 1.1.0
+        description: Release version, e.g. 1.1.0
         required: true
         type: string
+        default: '1.1.0'
       production_revision:
-        description: Exact 40-character HF revision from your production Kokoro runtime manifest
+        description: Production model revision (40-character HF SHA)
         required: true
         type: string
+        default: '51675ffbf14a92e7a144bc2695a88c87ae11ad34'
       publish:
         description: Create a new tag and GitHub Release after tests pass
         type: boolean
@@ -28,6 +30,16 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      - name: Select Xcode with Swift 6.2 for MisakiSwift
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.0.1'
+      - name: Report selected Apple toolchain
+        run: |
+          xcodebuild -version
+          xcrun swift --version
+      - name: Ensure Metal compiler is available for Misaki's MLX dependency
+        run: xcodebuild -downloadComponent MetalToolchain
       - name: Check version and pinned artifact revision
         env:
           FIXTURE_VERSION: ${{ inputs.version }}
@@ -57,10 +69,24 @@ jobs:
         run: |
           python scripts/fixtures/download_specs.py --revision "$PRODUCTION_REVISION" --output "$RUNNER_TEMP/production-specs"
           python scripts/fixtures/inspect_contract.py --bundle "$RUNNER_TEMP/fixture-build/kokoro" --production-specs "$RUNNER_TEMP/production-specs" --production-revision "$PRODUCTION_REVISION" --report "$RUNNER_TEMP/fixture-build/kokoro/ProductionContractInspection.json"
+      - name: Build integration tests and MLX Metal shaders with Xcode
+        run: |
+          xcodebuild build-for-testing \
+            -scheme KokoroCoreML-Package \
+            -destination 'platform=macOS' \
+            -derivedDataPath "$RUNNER_TEMP/kokoro-xcode"
+      - name: Stage dynamic Misaki framework resources for hostless tests
+        run: bash scripts/fixtures/stage_test_resources.sh "$RUNNER_TEMP/kokoro-xcode/Build/Products/Debug"
       - name: Compile models and test the real macOS Core ML pipeline
         env:
           KOKORO_EXECUTABLE_FIXTURE_ROOT: ${{ runner.temp }}/fixture-build/kokoro
-        run: swift test --filter ExecutableFixtureTests
+        run: |
+          set -o pipefail
+          xcrun xctest -XCTest KokoroTTSTests.ExecutableFixtureTests \
+            "$RUNNER_TEMP/kokoro-xcode/Build/Products/Debug/KokoroTTSTests.xctest" \
+            2>&1 | tee "$RUNNER_TEMP/fixture-tests.log"
+          # A misspelled filter must not turn a zero-test run into a validated release.
+          grep -Eq 'Executed [1-9][0-9]* tests?, with 0 failures' "$RUNNER_TEMP/fixture-tests.log"
       - name: Record successful validation in the downloadable bundle
         env:
           FIXTURE_VERSION: ${{ inputs.version }}
