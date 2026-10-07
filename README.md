@@ -115,7 +115,10 @@ let buffer = try audio.makePCMBuffer()
 Keep the `tts` actor in your app's existing model/session owner and reuse it for
 subsequent requests. `load` validates the bundle; `prewarm` compiles models and
 runs the complete prediction pipeline. Audio is mono Float32 PCM at 24 kHz.
-CPU-only is useful for repeatable integration runs. For fixtures stored outside
+CPU-only controls the Core ML stages; Misaki's text phonemizer also needs MLX
+Metal resources. Build apps and raw-text command-line tools with Xcode so those
+shaders are compiled (plain `swift run`/`swift test` does not compile them).
+CPU-only is useful for repeatable Core ML integration runs. For fixtures stored outside
 the app bundle, replace the resource provider with `.directory(fixtureRoot)`,
 where `fixtureRoot` is the URL of the extracted `kokoro/` directory.
 

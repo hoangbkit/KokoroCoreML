@@ -40,15 +40,19 @@ let audio = try await tts.synthesize("Hello world.", voice: .afHeart)
 // audio.samples is final finite 24 kHz mono PCM after normal postprocessing.
 ```
 
-CPU-only is useful for deterministic integration runs. An explicitly requested
+CPU-only controls the Core ML stages, not Misaki's MLX-backed text phonemizer.
+Build the consuming app with Xcode to include MLX's Metal shaders.
+CPU-only is useful for deterministic Core ML integration runs. An explicitly requested
 Apple-device check should also cover the app's intended compute policy.
 `load` validates resources lazily; actual compilation/prediction occurs in
 `prewarm` or synthesis. Empty/inaudible text continues to follow SDK semantics.
 
-For a manually requested command-line run on macOS:
+For a manually requested command-line run on macOS, open `Package.swift` in
+Xcode and build/run the `kokoro-sdk-smoke` executable product. Set its scheme's
+launch arguments to:
 
 ```sh
-swift run kokoro-sdk-smoke --fixture --cpu-only --bundle /absolute/path/kokoro --out fixture.wav
+--fixture --cpu-only --bundle /absolute/path/kokoro --out fixture.wav
 ```
 
 ## Admission and production separation
@@ -156,7 +160,12 @@ When explicitly requested:
 
 ```sh
 python scripts/fixtures/inspect_contract.py --bundle /tmp/fixture-build/kokoro
-KOKORO_EXECUTABLE_FIXTURE_ROOT=/tmp/fixture-build/kokoro swift test --filter ExecutableFixtureTests
+xcodebuild -downloadComponent MetalToolchain
+xcodebuild build-for-testing -scheme KokoroCoreML-Package \
+  -destination 'platform=macOS' -derivedDataPath /tmp/kokoro-xcode
+KOKORO_EXECUTABLE_FIXTURE_ROOT=/tmp/fixture-build/kokoro \
+  xcrun xctest -XCTest KokoroTTSTests.ExecutableFixtureTests \
+  /tmp/kokoro-xcode/Build/Products/Debug/KokoroTTSTests.xctest
 ```
 
 The focused tests cover default fixture rejection, strict fixture admission,
@@ -176,6 +185,12 @@ prevents publication.
 
 The macOS job explicitly selects Xcode 26.0.1, since the pinned MisakiSwift
 dependency requires Swift tools 6.2. The runner's default Xcode may be older.
+It also installs the Metal compiler component and builds the package with
+`xcodebuild build-for-testing`, then runs only `ExecutableFixtureTests` with
+`xcrun xctest`. This follows the pinned MLX dependency's Xcode build path: plain
+`swift test` compiles Swift/C++ but does not compile the Metal shaders needed
+when Misaki initializes. The workflow rejects a zero-test result before
+recording successful validation. See the [MLX build instructions](https://github.com/ml-explore/mlx-swift/blob/0.31.4/README.md#xcodebuild).
 
 GitHub must first register the workflow on the default branch (`master`) before
 the **Run workflow** button is available. Once registered, select the branch

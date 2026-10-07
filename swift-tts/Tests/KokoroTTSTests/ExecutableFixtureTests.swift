@@ -33,12 +33,13 @@ final class ExecutableFixtureTests: XCTestCase {
 
     func testExplicitCachesAreNamespacedByFixtureIdentity() throws {
         let root = try filesystemFixture()
-        let shared = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let shared = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
         let provider = try KokoroSDKModelProvider(
             resources: .directory(root, compiledModelsDirectory: shared), assetPolicy: .executableFixture
         )
-        XCTAssertEqual(provider.compiledModelsDirectory.deletingLastPathComponent(), shared)
+        XCTAssertEqual(provider.compiledModelsDirectory.deletingLastPathComponent().standardizedFileURL.path,
+            shared.standardizedFileURL.path)
         XCTAssertTrue(provider.compiledModelsDirectory.lastPathComponent.hasPrefix("fixture-"))
     }
 
