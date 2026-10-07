@@ -30,6 +30,23 @@ struct KokoroRuntimeManifest: Decodable, Sendable {
     /// Bundle profile name.
     let bundleProfile: String
 
+    /// Optional truthful synthetic provenance; absent in existing schema-v1 production bundles.
+    let syntheticFixture: SyntheticFixture?
+
+    struct SyntheticFixture: Decodable, Sendable {
+        let kind: String
+        let contractVersion: Int
+        let generatorRevision: String
+        let artifactVersion: String
+
+        private enum CodingKeys: String, CodingKey {
+            case kind
+            case contractVersion = "contract_version"
+            case generatorRevision = "generator_revision"
+            case artifactVersion = "artifact_version"
+        }
+    }
+
     /// Supported bucket seconds.
     let buckets: [Int]
 
@@ -56,6 +73,7 @@ struct KokoroRuntimeManifest: Decodable, Sendable {
         case minimumPlatforms = "minimum_platforms"
         case supportedLanguages = "supported_languages"
         case bundleProfile = "bundle_profile"
+        case syntheticFixture = "synthetic_fixture"
         case buckets
         case durationTokenSizes = "duration_token_sizes"
         case modelPackages = "model_packages"

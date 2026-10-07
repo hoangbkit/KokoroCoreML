@@ -1,0 +1,26 @@
+{
+  "artifact_version": "1.1.0",
+  "contract_sha256": "a68780f5dd67e65f716b9c3c280123074efd1b2fefa29639d1b94483f9203e36",
+  "generator_revision": "12535d2f1c5ec6faf0004a5b3e0daded4cb7dd2f",
+  "kind": "synthetic-coreml",
+  "production_contract_source": {
+    "artifact_inspection": "required-before-release",
+    "files": [
+      "export_duration.py",
+      "export_f0ntrain.py",
+      "export_decoder_pre.py",
+      "export_synth/convert.py",
+      "export_synth/wrappers.py"
+    ],
+    "kind": "pinned-exporter-source",
+    "repository": "mattmireles/kokoro-coreml",
+    "revision": "a3f1ff27b1d8683efa9976704b46cb1d96da1a4b"
+  },
+  "reproducibility": "equivalent contracts and deterministic outputs; package UUIDs may differ",
+  "runtime_validation": "not-performed-by-generator",
+  "toolchain": {
+    "coremltools": "9.0",
+    "numpy": "2.2.6",
+    "protobuf": "6.33.0"
+  }
+}

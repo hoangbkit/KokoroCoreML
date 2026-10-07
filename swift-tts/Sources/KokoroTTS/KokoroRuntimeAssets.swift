@@ -16,6 +16,9 @@ enum KokoroRuntimeAsset: String, CaseIterable, Sendable {
     /// Hash manifest fragment for the small checked SDK runtime assets.
     case manifest = "KokoroRuntimeAssets.json"
 
+    /// Exact synthetic model I/O contract used by generator and runtime checks.
+    case fixtureContract = "KokoroFixtureContract.json"
+
     /// File name stored inside the package resource directory.
     var fileName: String {
         rawValue

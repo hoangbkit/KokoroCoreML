@@ -1,0 +1,271 @@
+{
+  "contract_version": 1,
+  "profile": "fixture-executable-v1",
+  "runtime_commit": "81855f94ec873405d59967d36beb630ef0fd332a",
+  "production_contract_source": {
+    "repository": "mattmireles/kokoro-coreml",
+    "revision": "a3f1ff27b1d8683efa9976704b46cb1d96da1a4b",
+    "kind": "pinned-exporter-source",
+    "files": [
+      "export_duration.py",
+      "export_f0ntrain.py",
+      "export_decoder_pre.py",
+      "export_synth/convert.py",
+      "export_synth/wrappers.py"
+    ],
+    "artifact_inspection": "required-before-release"
+  },
+  "sample_rate": 24000,
+  "duration_token_sizes": [
+    128
+  ],
+  "buckets": [
+    15
+  ],
+  "models": [
+    {
+      "name": "kokoro_duration_t128.mlpackage",
+      "stage": "duration",
+      "inputs": [
+        {
+          "name": "input_ids",
+          "shape": [
+            1,
+            128
+          ],
+          "dtype": "int32"
+        },
+        {
+          "name": "ref_s",
+          "shape": [
+            1,
+            256
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "speed",
+          "shape": [
+            1
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "attention_mask",
+          "shape": [
+            1,
+            128
+          ],
+          "dtype": "int32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "pred_dur",
+          "shape": [
+            1,
+            128
+          ],
+          "dtype": "int32"
+        },
+        {
+          "name": "d",
+          "shape": [
+            1,
+            128,
+            640
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "t_en",
+          "shape": [
+            1,
+            512,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "s",
+          "shape": [
+            1,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "ref_s_out",
+          "shape": [
+            1,
+            256
+          ],
+          "dtype": "float32"
+        }
+      ]
+    },
+    {
+      "name": "kokoro_f0ntrain_t600.mlpackage",
+      "stage": "f0n",
+      "inputs": [
+        {
+          "name": "en",
+          "shape": [
+            1,
+            640,
+            600
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "s",
+          "shape": [
+            1,
+            128
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "mask",
+          "shape": [
+            1,
+            1,
+            600
+          ],
+          "dtype": "float32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "F0_pred",
+          "shape": [
+            1,
+            1200
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "N_pred",
+          "shape": [
+            1,
+            1200
+          ],
+          "dtype": "float32"
+        }
+      ]
+    },
+    {
+      "name": "kokoro_decoder_pre_15s.mlpackage",
+      "stage": "decoder",
+      "inputs": [
+        {
+          "name": "asr",
+          "shape": [
+            1,
+            512,
+            600
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "f0",
+          "shape": [
+            1,
+            1,
+            1200
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "n_input",
+          "shape": [
+            1,
+            1,
+            1200
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "ref_s",
+          "shape": [
+            1,
+            256
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "mask",
+          "shape": [
+            1,
+            1,
+            600
+          ],
+          "dtype": "float32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "x_pre",
+          "shape": [
+            1,
+            512,
+            1200
+          ],
+          "dtype": "float32"
+        }
+      ]
+    },
+    {
+      "name": "kokoro_decoder_har_post_15s.mlpackage",
+      "stage": "generator",
+      "inputs": [
+        {
+          "name": "x_pre",
+          "shape": [
+            1,
+            512,
+            1200
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "ref_s",
+          "shape": [
+            1,
+            256
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "har",
+          "shape": [
+            1,
+            22,
+            72001
+          ],
+          "dtype": "float32"
+        },
+        {
+          "name": "mask",
+          "shape": [
+            1,
+            1,
+            1200
+          ],
+          "dtype": "float32"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "waveform",
+          "shape": [
+            1,
+            1,
+            360000
+          ],
+          "dtype": "float32"
+        }
+      ]
+    }
+  ]
+}

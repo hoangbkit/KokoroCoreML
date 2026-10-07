@@ -1,0 +1,160 @@
+name: Generate, test, and release fixtures
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: New package/fixture version, e.g. 1.1.0
+        required: true
+        type: string
+      production_revision:
+        description: Exact 40-character HF revision from your production Kokoro runtime manifest
+        required: true
+        type: string
+      publish:
+        description: Create a new tag and GitHub Release after tests pass
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fixture-release-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  generate-and-test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check version and pinned artifact revision
+        env:
+          FIXTURE_VERSION: ${{ inputs.version }}
+          PRODUCTION_REVISION: ${{ inputs.production_revision }}
+        run: |
+          python - <<'PY'
+          import os, re
+          if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', os.environ['FIXTURE_VERSION']):
+              raise SystemExit('Use a package version such as 1.1.0, without a v prefix')
+          if not re.fullmatch(r'[0-9a-f]{40}', os.environ['PRODUCTION_REVISION']):
+              raise SystemExit('Use the exact hf_revision from your production runtime manifest')
+          PY
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: scripts/fixtures/requirements.txt
+      - name: Install pinned generator dependencies
+        run: python -m pip install -r scripts/fixtures/requirements.txt
+      - name: Generate fixtures from the selected commit
+        env:
+          FIXTURE_VERSION: ${{ inputs.version }}
+        run: python scripts/fixtures/generate.py --version "$FIXTURE_VERSION" --output "$RUNNER_TEMP/fixture-build/kokoro"
+      - name: Inspect fixture and actual pinned production contracts
+        env:
+          PRODUCTION_REVISION: ${{ inputs.production_revision }}
+        run: |
+          python scripts/fixtures/download_specs.py --revision "$PRODUCTION_REVISION" --output "$RUNNER_TEMP/production-specs"
+          python scripts/fixtures/inspect_contract.py --bundle "$RUNNER_TEMP/fixture-build/kokoro" --production-specs "$RUNNER_TEMP/production-specs" --production-revision "$PRODUCTION_REVISION" --report "$RUNNER_TEMP/fixture-build/kokoro/ProductionContractInspection.json"
+      - name: Compile models and test the real macOS Core ML pipeline
+        env:
+          KOKORO_EXECUTABLE_FIXTURE_ROOT: ${{ runner.temp }}/fixture-build/kokoro
+        run: swift test --filter ExecutableFixtureTests
+      - name: Record successful validation in the downloadable bundle
+        env:
+          FIXTURE_VERSION: ${{ inputs.version }}
+          PRODUCTION_REVISION: ${{ inputs.production_revision }}
+          VALIDATED_COMMIT: ${{ github.sha }}
+          FIXTURE_ROOT: ${{ runner.temp }}/fixture-build/kokoro
+          VALIDATION_RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          payload = {
+              'artifact_version': os.environ['FIXTURE_VERSION'],
+              'validated_commit': os.environ['VALIDATED_COMMIT'],
+              'production_revision': os.environ['PRODUCTION_REVISION'],
+              'runtime_platform': 'macOS',
+              'tests': 'ExecutableFixtureTests',
+              'status': 'passed',
+              'workflow_run': os.environ['VALIDATION_RUN'],
+          }
+          (Path(os.environ['FIXTURE_ROOT']) / 'FixtureValidation.json').write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + '\n')
+          PY
+      - name: Package fixture archive, checksum, and validation reports
+        run: |
+          python scripts/fixtures/package.py --bundle "$RUNNER_TEMP/fixture-build/kokoro" --output-directory dist
+          cp "$RUNNER_TEMP/fixture-build/kokoro/FixtureValidation.json" dist/
+          cp "$RUNNER_TEMP/fixture-build/kokoro/ProductionContractInspection.json" dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kokoro-executable-fixture
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    if: inputs.publish
+    needs: generate-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: kokoro-executable-fixture
+          path: dist
+      - name: Require a new version without replacing existing tags
+        env:
+          FIXTURE_VERSION: ${{ inputs.version }}
+        run: |
+          set +e
+          git ls-remote --exit-code --tags "https://github.com/$GITHUB_REPOSITORY.git" "refs/tags/$FIXTURE_VERSION" > "$RUNNER_TEMP/existing-tag.txt"
+          result=$?
+          set -e
+          if [ "$result" -eq 0 ]; then
+            echo '::error::This version is already tagged. Select a new version.'
+            exit 1
+          fi
+          if [ "$result" -ne 2 ]; then
+            exit "$result"
+          fi
+      - name: Create release notes
+        env:
+          FIXTURE_VERSION: ${{ inputs.version }}
+          VALIDATED_COMMIT: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          validation = json.loads(Path('dist/FixtureValidation.json').read_text())
+          if validation['validated_commit'] != os.environ['VALIDATED_COMMIT'] or validation['artifact_version'] != os.environ['FIXTURE_VERSION'] or validation['status'] != 'passed':
+              raise SystemExit('Artifact validation does not match the selected commit/version')
+          version = os.environ['FIXTURE_VERSION']
+          notes = (
+              f'KokoroCoreML {version} includes synthetic executable integration fixtures.\n\n'
+              f'Download `kokoro-fixture-{version}.tar.gz` and its `.sha256`, verify the checksum, '
+              'and extract the `kokoro/` directory. Pin this package tag in ReadAloud and stage '
+              'the directory as plain resources. Load with `assetPolicy: .executableFixture`.\n\n'
+              'These assets generate a tone through the real Core ML pipeline. They are not '
+              'production speech models. Production loading remains the default.\n\n'
+              f'The generated assets passed production-contract comparison and macOS '
+              f'Core ML integration tests. Validation run: {validation["workflow_run"]}\n\n'
+              'iPhone runtime validation is separate. See `docs/executable-fixtures.md` '
+              'at this tag for app integration.\n'
+          )
+          Path('release-notes.md').write_text(notes)
+          PY
+      - name: Create the tag and publish a release with fixture downloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          FIXTURE_VERSION: ${{ inputs.version }}
+          VALIDATED_COMMIT: ${{ github.sha }}
+        run: |
+          gh release create "$FIXTURE_VERSION" dist/* \
+            --target "$VALIDATED_COMMIT" \
+            --title "KokoroCoreML $FIXTURE_VERSION" \
+            --notes-file release-notes.md
