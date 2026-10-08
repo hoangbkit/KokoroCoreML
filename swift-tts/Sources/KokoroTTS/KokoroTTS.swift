@@ -344,15 +344,17 @@ public actor KokoroTTS {
         var segments: [[Float]] = []
         for input in inputs {
             try Task.checkCancellation()
-            var dump: TensorDumpWriter? = nil
-            let result = try executeKokoroSynthesis(
-                request: input.synthesisRequest(),
-                modelProvider: modelProvider,
-                linearWeights: hnsf.linearWeights,
-                linearBias: hnsf.linearBias,
-                tensorDump: &dump
-            )
-            segments.append(result.audio)
+            let audio: [Float] = try autoreleasepool {
+                var dump: TensorDumpWriter? = nil
+                return try executeKokoroSynthesis(
+                    request: input.synthesisRequest(),
+                    modelProvider: modelProvider,
+                    linearWeights: hnsf.linearWeights,
+                    linearBias: hnsf.linearBias,
+                    tensorDump: &dump
+                ).audio
+            }
+            segments.append(audio)
         }
         let samples = PcmJoiner.join(segments: segments, sampleRate: PipelineConstants.sampleRate)
         guard !samples.isEmpty, samples.allSatisfy({ $0.isFinite }) else {
@@ -421,3 +423,4 @@ public actor KokoroTTS {
         return error
     }
 }
+

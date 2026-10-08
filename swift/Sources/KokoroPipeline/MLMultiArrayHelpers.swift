@@ -35,7 +35,14 @@ public enum PipelineValidationError: Error, LocalizedError {
 /// MLMultiArray indexed access instead of raw pointer traversal so Core ML output
 /// strides are respected too.
 public func readDurationFrames(from array: MLMultiArray, validCount: Int? = nil) throws -> [Int] {
-    let count = max(0, min(validCount ?? array.count, array.count))
+    let shape = array.shape.map { $0.intValue }
+    guard shape.count == 1 || (shape.count == 2 && shape[0] == 1),
+          let tokenCount = shape.last, tokenCount > 0 else {
+        throw PipelineValidationError.invalidArrayShape(
+            operation: "readDurationFrames", expected: "(tokens) or (1, tokens)", actual: shape
+        )
+    }
+    let count = max(0, min(validCount ?? tokenCount, tokenCount))
     var frames = [Int](repeating: 0, count: count)
     let rank = array.shape.count
 
@@ -53,7 +60,11 @@ public func readDurationFrames(from array: MLMultiArray, validCount: Int? = nil)
         if array.dataType == .int32 {
             frames[i] = max(1, value.intValue)
         } else {
-            frames[i] = max(1, Int(round(value.doubleValue)))
+            let duration = value.doubleValue.rounded()
+            guard duration.isFinite, duration >= 0, duration <= Double(Int32.max) else {
+                throw PipelineError.modelContractMismatch("Non-finite or overflowing duration output")
+            }
+            frames[i] = max(1, Int(duration))
         }
     }
 
@@ -212,8 +223,10 @@ public func makeZeroArray2D(dim: Int) throws -> MLMultiArray {
 public func copyInto(array: MLMultiArray, from source: [Float]) {
     let ptr = array.dataPointer.assumingMemoryBound(to: Float.self)
     let count = min(source.count, array.count)
-    _ = source.withUnsafeBufferPointer { srcBuf in
-        memcpy(ptr, srcBuf.baseAddress!, count * MemoryLayout<Float>.size)
+    guard count > 0 else { return }
+    source.withUnsafeBufferPointer { srcBuf in
+        guard let base = srcBuf.baseAddress else { return }
+        memcpy(ptr, base, count * MemoryLayout<Float>.size)
     }
 }
 
@@ -494,3 +507,4 @@ public func stageInputs(
     }
     return try MLDictionaryFeatureProvider(dictionary: features)
 }
+
