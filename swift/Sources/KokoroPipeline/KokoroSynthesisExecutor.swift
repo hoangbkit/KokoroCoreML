@@ -76,6 +76,23 @@ public func executeKokoroSynthesis(
     linearBias: Float,
     tensorDump: inout TensorDumpWriter?
 ) throws -> SynthesisResult {
+    try Task.checkCancellation()
+    guard !request.inputIds.isEmpty,
+          request.inputIds.count <= PipelineConstants.maxDurationTokenLength,
+          requestedTokenCount(inputIds: request.inputIds, attentionMask: request.attentionMask)
+            <= PipelineConstants.maxCallerChunkTokens,
+          request.attentionMask.count == request.inputIds.count,
+          request.refS.count == PipelineConstants.voiceEmbeddingDim,
+          request.refS.allSatisfy(\.isFinite),
+          linearWeights.count == 9, linearWeights.allSatisfy(\.isFinite), linearBias.isFinite,
+          request.speed.isFinite, request.speed > 0 else {
+        throw PipelineError.modelContractMismatch("Invalid synthesis input geometry or values")
+    }
+    if let override = request.bucketDurationOverrideSeconds {
+        guard override.isFinite, override > 0 else {
+            throw PipelineError.modelContractMismatch("Invalid duration override")
+        }
+    }
     let durationChoices = modelProvider.durationModelChoices()
     let durationChoice = try KokoroPipeline.selectDurationChoice(
         durationChoices,
@@ -122,16 +139,16 @@ public func executeKokoroSynthesis(
     let t1 = CFAbsoluteTimeGetCurrent()
     timings.durationCoreML = t1 - t0
 
-    let predDurArray = durOutput.featureValue(for: "pred_dur")!.multiArrayValue!
-    let dArray = durOutput.featureValue(for: "d")!.multiArrayValue!
-    let tEnArray = durOutput.featureValue(for: "t_en")!.multiArrayValue!
-    let tokenCount = predDurArray.shape.last!.intValue
+    let predDurArray = try requiredArray(from: durOutput, key: "pred_dur")
+    let dArray = try requiredArray(from: durOutput, key: "d")
+    let tEnArray = try requiredArray(from: durOutput, key: "t_en")
+    let tokenCount = predDurArray.shape.last?.intValue ?? 0
     let validTokens = validTokenCount(
         predDurTokenCount: tokenCount,
         attentionMask: request.attentionMask
     )
     let predDur = try readDurationFrames(from: predDurArray, validCount: validTokens)
-    let frames = predDur.reduce(0, +)
+    let frames = try validatedFrameCount(predDur, modelProvider: modelProvider)
     let totalSeconds = Double(frames * 2) / PipelineConstants.f0FrameRate
     let bucketSelectionSeconds = request.bucketDurationOverrideSeconds ?? totalSeconds
 
@@ -191,6 +208,10 @@ public func executeKokoroSynthesis(
     guard let tFrames = PipelineConstants.tFramesForBucket[bucketSec] else {
         throw PipelineError.modelNotLoaded("f0ntrain bucket \(bucketSec)")
     }
+    guard frames <= tFrames else {
+        throw PipelineError.modelContractMismatch("Predicted duration exceeds selected acoustic bucket")
+    }
+    try Task.checkCancellation()
     try modelProvider.prepareForBucket(bucketSec: bucketSec, tFrames: tFrames)
     let f0nModel = try modelProvider.f0ntrainModel(tFrames: tFrames)
     let enPadded = try zeroPad3D(
@@ -212,13 +233,17 @@ public func executeKokoroSynthesis(
         "s": MLFeatureValue(multiArray: sArray),
     ], validFrames: frames, totalFrames: tFrames)
     let f0nOutput = try f0nModel.prediction(from: f0nInput)
-    let f0PredArray = f0nOutput.featureValue(for: "F0_pred")!.multiArrayValue!
-    let nPredArray = f0nOutput.featureValue(for: "N_pred")!.multiArrayValue!
+    let f0PredArray = try requiredArray(from: f0nOutput, key: "F0_pred")
+    let nPredArray = try requiredArray(from: f0nOutput, key: "N_pred")
     let t7 = CFAbsoluteTimeGetCurrent()
     timings.f0ntrainCoreML = t7 - t6
 
     let f0Curve = floatValues(from: f0PredArray)
     let nCurve = floatValues(from: nPredArray)
+    guard f0Curve.allSatisfy(\.isFinite), nCurve.allSatisfy(\.isFinite) else {
+        throw PipelineError.modelContractMismatch("Non-finite acoustic output")
+    }
+    try Task.checkCancellation()
 
     try tensorDump?.writeFloatArray(name: "f0", values: f0Curve, shape: [1, f0Curve.count])
     try tensorDump?.writeFloatArray(name: "n", values: nCurve, shape: [1, nCurve.count])
@@ -259,7 +284,7 @@ public func executeKokoroSynthesis(
         "ref_s": MLFeatureValue(multiArray: decRefS),
     ], validFrames: frames, totalFrames: frameCount)
     let decPreOutput = try decPreModel.prediction(from: decPreInput)
-    let xPre = decPreOutput.featureValue(for: "x_pre")!.multiArrayValue!
+    let xPre = try requiredArray(from: decPreOutput, key: "x_pre")
     let t11 = CFAbsoluteTimeGetCurrent()
     timings.decoderPre = t11 - t10
 
@@ -320,7 +345,10 @@ public func executeKokoroSynthesis(
     copyInto(array: genRefS, from: request.refS)
 
     let genShapes = inputShapes(from: genModel)
-    let xPreExpectedTime = genShapes["x_pre"]?.last ?? xPre.shape.last!.intValue
+    guard xPre.shape.count == 3, xPre.shape[0].intValue == 1 else {
+        throw PipelineError.modelContractMismatch("Invalid decoder x_pre shape")
+    }
+    let xPreExpectedTime = genShapes["x_pre"]?.last ?? xPre.shape[2].intValue
     let harExpectedTime = genShapes["har"]?.last ?? harFrames
     let xPrePadded = try zeroPad3D(
         source: xPre,
@@ -350,8 +378,11 @@ public func executeKokoroSynthesis(
 
     // Stage 9: trim waveform.
     let t16 = CFAbsoluteTimeGetCurrent()
-    let waveformKey = genOutput.featureNames.contains("waveform") ? "waveform" : genOutput.featureNames.first!
-    let waveformArray = genOutput.featureValue(for: waveformKey)!.multiArrayValue!
+    guard let waveformKey = genOutput.featureNames.contains("waveform")
+            ? "waveform" : genOutput.featureNames.sorted().first else {
+        throw PipelineError.modelContractMismatch("Generator returned no waveform")
+    }
+    let waveformArray = try requiredArray(from: genOutput, key: waveformKey)
     let originalF0Len = frames * 2
     let targetLen = Int(
         round(Double(originalF0Len) / PipelineConstants.f0FrameRate * Double(PipelineConstants.sampleRate))
@@ -359,14 +390,12 @@ public func executeKokoroSynthesis(
     let trimLen = min(waveformArray.count, targetLen)
     let rawAudio = floatValues(from: waveformArray, limit: trimLen)
     let expectedAudioSamples = predDur.reduce(0, +) * PipelineConstants.samplesPerDurationFrame
-    #if DEBUG
-    if trimLen < expectedAudioSamples {
-        assertionFailure(
-            "Trimmed waveform (\(trimLen) samples) is shorter than pred_dur span " +
-            "(\(expectedAudioSamples) samples); punctuation suppression may be partial"
+    guard trimLen >= expectedAudioSamples else {
+        throw PipelineError.modelContractMismatch(
+            "Generated waveform is shorter than its predicted duration"
         )
     }
-    #endif
+    try Task.checkCancellation()
     let audio = suppressPunctuationTokenAudio(
         rawAudio,
         inputIds: Array(request.inputIds.prefix(predDur.count)),
@@ -502,9 +531,9 @@ private func probeDurationAndBucket(
     bucketDurationOverrideSeconds: Double?
 ) throws -> DurationProbe {
     let output = try durationModel.prediction(from: input.provider)
-    let predDurArray = output.featureValue(for: "pred_dur")!.multiArrayValue!
+    let predDurArray = try requiredArray(from: output, key: "pred_dur")
     let predDur = try readDurationFrames(from: predDurArray, validCount: validTokenLimit)
-    let totalFrames = predDur.reduce(0, +)
+    let totalFrames = try validatedFrameCount(predDur, modelProvider: modelProvider)
     let totalSeconds = Double(totalFrames * 2) / PipelineConstants.f0FrameRate
     guard let bucketSec = selectBucket(
         totalSeconds: bucketDurationOverrideSeconds ?? totalSeconds,
@@ -514,6 +543,9 @@ private func probeDurationAndBucket(
     }
     guard let tFrames = PipelineConstants.tFramesForBucket[bucketSec] else {
         throw PipelineError.modelNotLoaded("f0ntrain bucket \(bucketSec)")
+    }
+    guard totalFrames <= tFrames else {
+        throw PipelineError.modelContractMismatch("Predicted duration exceeds prewarm bucket")
     }
     try modelProvider.prepareForBucket(bucketSec: bucketSec, tFrames: tFrames)
     let bucketSamples = bucketSec * PipelineConstants.sampleRate
@@ -592,4 +624,29 @@ private func warmModels(
 
 private func decoderPreFrameCount(fullF0Len: Int) -> Int {
     (fullF0Len - 1) / 2 + 1
+}
+
+
+/// Convert malformed Core ML outputs into a recoverable public SDK error.
+private func requiredArray(from provider: MLFeatureProvider, key: String) throws -> MLMultiArray {
+    guard let array = provider.featureValue(for: key)?.multiArrayValue,
+          !array.shape.isEmpty, array.shape.allSatisfy({ $0.intValue > 0 }) else {
+        throw PipelineError.modelContractMismatch("Missing or invalid model output: \(key)")
+    }
+    return array
+}
+
+/// Reject corrupt durations before token-to-frame expansion allocates tensors.
+private func validatedFrameCount(_ durations: [Int], modelProvider: KokoroModelProvider) throws -> Int {
+    let limit = modelProvider.availableBucketSeconds()
+        .compactMap { PipelineConstants.tFramesForBucket[$0] }.max() ?? 0
+    guard limit > 0, !durations.isEmpty else { throw PipelineError.noBucketAvailable }
+    var frames = 0
+    for duration in durations {
+        guard duration > 0, duration <= limit - frames else {
+            throw PipelineError.modelContractMismatch("Predicted duration exceeds supported acoustic geometry")
+        }
+        frames += duration
+    }
+    return frames
 }

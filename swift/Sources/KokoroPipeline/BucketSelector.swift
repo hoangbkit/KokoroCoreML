@@ -14,14 +14,15 @@ import Foundation
 ///   - availableBuckets: Sorted list of available bucket durations in seconds.
 /// - Returns: The selected bucket duration, or nil if no buckets available.
 public func selectBucket(totalSeconds: Double, availableBuckets: [Int]) -> Int? {
-    guard !availableBuckets.isEmpty else { return nil }
+    guard !availableBuckets.isEmpty, totalSeconds.isFinite, totalSeconds > 0 else { return nil }
     let sorted = availableBuckets.sorted()
-    let threshold = Int(ceil(totalSeconds))
+    let threshold = ceil(totalSeconds)
     for sec in sorted {
-        if sec >= threshold {
+        if Double(sec) >= threshold {
             return sec
         }
     }
     // Fallback to largest bucket
     return sorted.last
 }
+
